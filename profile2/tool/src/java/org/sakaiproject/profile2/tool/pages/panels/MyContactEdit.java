@@ -12,6 +12,11 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Changes:
+ *
+ * (01) Remove ability to change e-mail address - JD - 20180322
+ *
  */
 package org.sakaiproject.profile2.tool.pages.panels;
 
@@ -124,6 +129,9 @@ public class MyContactEdit extends Panel {
 		} else {
 			email.setVisible(false);
 		}
+		// Change (01) Begins - JD - 20180322
+		email.setVisible(false);
+		// Change (01) Ends - JD - 20180322
 		emailContainer.add(email);
 		emailContainer.add(emailReadOnly);
 		
