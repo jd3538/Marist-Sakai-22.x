@@ -1,4 +1,6 @@
 ##<!-- $Header: /cvs/sakai2/legacy/tools/src/webapp/vm/sitesetup/chef_site-type.vm,v 1.3 2005/06/04 02:41:16 ggolden.umich.edu Exp $ -->
+## Changes
+## 01 - JD - 20180322 - Remove option for "Build Own Site" for non admin users
 
 #*
     routing logic
@@ -29,13 +31,22 @@
         <input type="text" id="courseSiteTypes" style="display:none" value="$courseSiteTypeStrings">
         
     #if ($alertMessage)<div class="sak-banner-error">$tlang.getString("sitetype.alert") $alertMessage</div>  #end
+    ## Change (01) Begins - JD - 20180322
+    #if ($isAdmin)
+    ## Change (01) Ends - JD - 20180322
     #if ($multipleTypes)
         <p class="instruction">
             $tlang.getString("sitetype.chothetyp.different.ways")
         </p>
     #end
+    ## Change (01) Begins - JD - 20180322
+    #end
+    ## Change (01) Ends - JD - 20180322
     <form name="typeform" id="typeform" action="#toolForm("$action")&special=upload" method="post">
-        #if ($multipleTypes)
+        ## Change (01) Begins - JD - 20180322
+	#if ($isAdmin)
+	## Change (01) Ends - JD - 20180322
+	#if ($multipleTypes)
             <p class="checkbox indnt1">
                 ## only show the radio button when there is any template site defined
                 <input type="radio" name="createMode" id="buildOwn" value="buildOwn" checked="checked"/>
@@ -47,12 +58,17 @@
             <input type="hidden" name="createMode" id="buildOwn" value="buildOwn" />
             <p>$tlang.getString("sitetype.chothetyp.withouttemplate")</p>
         #end
-
+        ## Change (01) Begins - JD - 20180322
+	#end
+	### Change (01) Ends - JD - 20180322
         ## NOTE: end if create from template enabled
         #* following block should show if "build own" has been selected,
          a site type has been picked, and then the user (from the next screen) hits "back"  - the "Build own" radio
          should be checked, as well as the selected site type
          *#
+	## Change (01) Begins - JD - 20180322
+	#if ($isAdmin)
+	## Change (01) Ends - JD - 20180322
         <div id="siteTypeList" class="indnt3">
             #foreach ($type in $siteTypes)
 				#set($courseTypeWithPerm    = (($courseSiteTypeStrings.contains($type) || $type == "course")    && $canAddCourse ))
@@ -101,6 +117,9 @@
                 #end ## end of #if (courseTypeWithPerm || portfolioTypeWithPerm || projectTypeWithPerm))
             #end  ##end of #foreach ($type in $siteTypes)
         </div>
+	## Change (01) Begins - JD - 20180322
+	#end
+	## Change (01) Ends - JD - 20180322
         #if ($templateSites.size() > 0)
             ## if templates enabled
             <p class="checkbox indnt1">
