@@ -1,4 +1,6 @@
 ##<!-- $Header: /cvs/sakai2/legacy/tools/src/webapp/vm/sitesetup/chef_site-newSiteCourse.vm,v 1.3 2005/05/25 17:42:01 gsilver.umich.edu Exp $ -->
+## Changes
+## 01 - JD - 20180322 - Change roster select from checkboxes to radio buttons, remove option to associate a roster to more than one course, clean up UI
 <div class="portletBody container-fluid">
 	#if($menu)#toolbar($menu)#end
 ## header for edit class roster's editing course/section info
@@ -85,9 +87,11 @@
 					<th colspan="2" title="$!courseObject.eid">
 						$!courseObject.title #if($!courseObject.description) - $!courseObject.description#end #if($!showRosterEIDs) ($!courseObject.eid)#end
 					</th>
-					<th>
-						$tlang.getString("useOfficialDescription")
-					</th>
+					## Change (01) Begins - JD - 20180322
+					##<th>
+					##	$tlang.getString("useOfficialDescription")
+					##</th>
+					## Change (01) Ends - JD - 20180322
 					</tr>
 					#foreach($courseOfferingObject in $courseObject.courseOfferingObjects)
 						#set($hasRosters=true)
@@ -132,7 +136,10 @@
 									style="padding-left:1.5em"
 								#end
 								>
-								<input type="checkbox" name="providerCourseAdd" value="$!sectionObject.eid" id="course$courseNumber"
+								## Change (01) Begins - JD - 20180322
+								##<input type="checkbox" name="providerCourseAdd" value="$!sectionObject.eid" id="course$courseNumber"
+								<input type="radio" name="providerCourseAdd" value="$!sectionObject.eid" id="course$courseNumber"
+								## Change (01) Ends - JD - 20180322
 								#if ($!selectedProviderCourse.contains("$!sectionObject.eid") || $!selectedAuthorizerCourse.contains("$!sectionObject.eid") )
 									checked="checked"
 								#end 
@@ -147,23 +154,28 @@
 									<h5>
 									<label for="course$courseNumber" title="$sectionObject.eid">$formattedText.escapeHtml($sectionObject.title) $!sectionObject.getCategoryDescription()</label>
 									#if ($!sectionObject.attached)
-										<span class="instruction">($tlang.getString("nscourse.site_exists") <a href="#" onclick="javascript:enableCheckBox($!courseNumber)">$tlang.getString("nscourse.select_anyways")</a>)</span>
+									## Change (01) Begins - JD - 20180322
+									##	<span class="instruction">($tlang.getString("nscourse.site_exists") <a href="#" onclick="javascript:enableCheckBox($!courseNumber)">$tlang.getString("nscourse.select_anyways")</a>)</span>
+									        <span class="instruction"><b>Roster Already Associated</b></span>
+									## Change (01) Ends - JD - 20180322
 									#end
 									#set ($courseNumber = $courseNumber +1)
 									</h5>
 								</td>
-								<td>
-									#set($sectionDescription=false)
-									#set($sectionDescription=$!sectionObject.description)
-									#if ($!sectionDescription && !$!sectionDescription.isEmpty())
-										<input type="checkbox" name="providerCourseAddDescription" value="$!sectionObject.eid" id="courseDesc$courseNumber" 
-											#if ($!selectedProviderCourseDescription.contains($!sectionObject.eid))
-												checked="checked"
-											#end 
-										/>
-                                        <label for="courseDesc$courseNumber" class="skip">$tlang.getString("useOfficialDescription"): $formattedText.escapeHtml($sectionObject.title) ($sectionObject.eid) $!sectionObject.getCategoryDescription()</label>
-									#end
-								</td>
+								## Change (01) Begins - JD - 20180322
+								##<td>
+								##	#set($sectionDescription=false)
+								##	#set($sectionDescription=$!sectionObject.description)
+								##	#if ($!sectionDescription && !$!sectionDescription.isEmpty())
+								##		<input type="checkbox" name="providerCourseAddDescription" value="$!sectionObject.eid" id="courseDesc$courseNumber" 
+								##			#if ($!selectedProviderCourseDescription.contains($!sectionObject.eid))
+								##				checked="checked"
+								##			#end 
+								##		/>
+                                     ##   <label for="courseDesc$courseNumber" class="skip">$tlang.getString("useOfficialDescription"): $formattedText.escapeHtml($sectionObject.title) ($sectionObject.eid) $!sectionObject.getCategoryDescription()</label>
+								##	#end
+								##</td>
+								## Change (01) Ends - JD - 20180322
 								</tr>
 							#end
 						#end
@@ -214,10 +226,12 @@
 		<input type="hidden" name="eventSubmit_doContinue_new_course" value="x" />
 			#if (!$site)
 				## determine to skip manual course site create link in worksite setup
-				#if( !$skipCourseSectionSelection || !$skipManualCourseCreation)
-					<!-- Add Not Listed Courses -->
-					<a href="#" onclick="javascript:submitFindCourse();">$tlang.getString('nscourse.add_course_not_listed')</a>
-				#end
+				## Change (01) Begins - JD - 20180322
+				###if( !$skipCourseSectionSelection || !$skipManualCourseCreation)
+				##	<!-- Add Not Listed Courses -->
+				##	<a href="#" onclick="javascript:submitFindCourse();">$tlang.getString('nscourse.add_course_not_listed')</a>
+				###end
+				## Change (01) Ends - JD - 20180322
 				## if site creation is based on template, this could be the final step!
 				#if ($!basedOnTemplate && !$publishTemplate) 
 					<div class="instruction" id ="nextInstructions">
