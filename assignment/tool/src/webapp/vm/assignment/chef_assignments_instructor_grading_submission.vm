@@ -350,6 +350,7 @@
                 tool-id="sakai.assignment"
                 entity-id="$assignment.Id"
                 evaluated-item-id="$submission.Id"
+                enable-pdf-export="$enablePdfExport"
                 #if ($groupRef)
                 evaluated-item-owner-id="$groupRef"
                 group
@@ -781,8 +782,7 @@
                            title="$tlang.getString("gen.retustudtit")"/>
 					<input type="button" accesskey="v" name="preview" value="$tlang.getString('gen.pre')"
                            onclick="SPNR.disableControlsAndSpin( this, null ); ASN.submitForm( 'gradeForm', 'previewgrade', '$formattedText.escapeUrl( $submissionReference )', null ); return false;"/>
-					<input type="button" accesskey="x" name="cancel" value="$tlang.getString('cancel_changes')"
-                           onclick="SPNR.disableControlsAndSpin( this, null ); ASN.submitForm( 'gradeForm', 'cancelgrade', null, null ); return false;"/>
+					<input type="button" accesskey="x" name="cancel" value="$tlang.getString('cancel_changes')" onclick="ASN.cancelGradeSubmission();" />
                     #if ($!prevSubmissionId)
                         <input type="hidden" name="prevSubmissionId" id="prevSubmissionId" value="$!prevSubmissionId"/>
                     #end
