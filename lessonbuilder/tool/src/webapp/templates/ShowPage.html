@@ -950,7 +950,7 @@
                         <div class="questionDiv" rsf:id="questionDiv">
                             <div rsf:id="questionitem-group-titles" class="item-group-titles"></div>
                             <div class="statusCol">
-                                <span rsf:id="questionStatus" aria-hidden="ture"></span>
+                                <span rsf:id="questionStatus" aria-hidden="true"></span>
                             </div>
 
                             <div class="contentCol">
@@ -1006,6 +1006,8 @@
                             <span rsf:id="questionMultipleChoiceAnswerId" class="questionMultipleChoiceAnswerId"></span>
                             <span rsf:id="questionMultipleChoiceAnswerText" class="questionMultipleChoiceAnswerText"></span>
                             <span rsf:id="questionMultipleChoiceAnswerCorrect" class="questionMultipleChoiceAnswerCorrect"></span>
+                            <!-- SAK-46296 -->
+                            <input type="hidden" class="raw-questionAnswer-text" rsf:id="raw-questionAnswer-text" />
                         </div>
                         <span style="display:none" rsf:id="questionShowPoll" class="questionShowPoll"></span>
                         <span style="display:none" rsf:id="questionGrade" class="questionGrade"></span>
