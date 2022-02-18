@@ -120,7 +120,10 @@
                 <module>webcomponents</module>
                 <module>webjars</module>
                 <module>webservices</module>
-                <module>wicket</module>
+		<module>wicket</module>
+		<module>attendance-master</module>
+		<module>certification</module>
+		<module>scorm</module>
             </modules>
         </profile>
         <profile>
@@ -208,7 +211,10 @@
                 <module>webjars</module>
                 <module>webservices</module>
                 <module>wicket</module>
-                <module>yaft</module>
+		<module>yaft</module>
+		<module>attendance-master</module>
+                <module>certification</module>
+                <module>scorm</module>
             </modules>
         </profile>
 
