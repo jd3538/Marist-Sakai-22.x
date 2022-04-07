@@ -151,6 +151,13 @@ public class Assignment implements Serializable, Comparable<Assignment> {
 	@Getter
 	@Setter
 	private boolean scaleGrades;
+	@Getter
+	@Setter
+	private String context;
+	@Getter
+	@Setter
+	private String gradebookId;
+	
 
 	@Override
 	public int compareTo(final Assignment o) {

@@ -302,7 +302,6 @@ public class AddOrEditGradeItemPanelContent extends BasePanel {
 				this.counted.setModelObject(false);
 			}
 		}
-
 		add(this.counted);
 
 		// behaviour for when a category is chosen. If the category is extra
