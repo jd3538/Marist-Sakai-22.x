@@ -51,7 +51,7 @@
         #if ($submission)
             #set($submissionId = $submission.Id)
         #end
-        <span class="highlight"> - $!service.getSubmissionStatus($!submissionId)</span>
+        <span class="highlight"> - $!service.getSubmissionStatus($!submissionId, false)</span>
     </h3>
     #if (!$!nonElectronicType)
         #progressBar($!service.getProgressBarStatus($!submission))
@@ -326,6 +326,15 @@
         #if (($!submission.FeedbackComment) && ($submission.FeedbackComment.length() > 0))
             <h5>$tlang.getString("gen.addinst")</h5>
             <div class="textPanel borderPanel">$formattedText.escapeHtmlFormattedText($submission.FeedbackComment)</div>
+        #end
+
+        #if ($!prevFeedbackComment)
+            <h4  id="toggleGen" class="toggleAnchor"><img alt="expand" class="expand" src="/library/image/sakai/expand.gif" /><img alt="collapse" class="collapse" src="/library/image/sakai/collapse.gif" />
+                $tlang.getString("gradingsub.prefee2")
+            </h4>
+            <div class="toggledContent gencoms">                    
+                $cheffeedbackhelper.escapeAssignmentFeedback($!prevFeedbackComment)
+            </div>
         #end
 
         ## Feedback Attachments

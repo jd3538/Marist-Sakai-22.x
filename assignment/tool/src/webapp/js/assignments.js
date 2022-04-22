@@ -479,24 +479,6 @@ ASN.toggleElements = function( elements, disabled )
     }
 };
 
-ASN.enableLinks = function()
-{
-    var links = [
-        document.getElementById( "downloadAll" ),
-        document.getElementById( "uploadAll" ),
-        document.getElementById( "releaseGrades" ),
-        document.getElementById( "helpItems" )
-    ];
-
-    for( i = 0; i < links.length; i++ )
-    {
-        if( links[i] !== null )
-        {
-            links[i].className = "";
-        }
-    }
-};
-
 ASN.checkEnableRemove = function()
 {
     var selected = false;
@@ -1025,6 +1007,13 @@ $(document).ready(() => {
     [...document.getElementsByTagName("sakai-rubric-student-button")].forEach(b => promises.push(b.releaseEvaluation()));
     Promise.all(promises).then(() => ASN.submitForm('viewForm', 'releaseGrades', null, null));
   });
+
+  // If grade is released, rubric must be released too
+  const gradeIsReleasedInput = document.getElementById("grade-is-released");
+  if (gradeIsReleasedInput && gradeIsReleasedInput.value === 'true') {
+    const buttons = document.querySelectorAll(".prevsubmission, .prevUngraded, .nextsubmission, .nextUngraded");
+    buttons && buttons.forEach(button => button.addEventListener("click", releaseRubric));
+  }
 });
 
 ASN.cancelGradeSubmission = function () {
