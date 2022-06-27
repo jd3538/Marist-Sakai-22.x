@@ -285,20 +285,13 @@
 			<script>
 				function storeOpenDateISO(e) {
 					e.preventDefault();
-					document.getElementsByClassName("openDateISO")[0].value = document.getElementById("openDateISO8601").value;
+					document.getElementById("revise:openDateISO").value = document.getElementById("openDateISO8601").value;
 				}
 
 				function storeCloseDateISO(e) {
 					e.preventDefault();
-					document.getElementsByClassName("closeDateISO")[0].value = document.getElementById("closeDateISO8601").value;
+					document.getElementById("revise:closeDateISO").value = document.getElementById("closeDateISO8601").value;
 				}
-
-				$(document).ready(function() {
-					if (document.getElementById("openDateISO8601").value != null) {
-						document.getElementsByClassName("openDateISO")[0].value = document.getElementById("openDateISO8601").value;
-						document.getElementsByClassName("closeDateISO")[0].value = document.getElementById("closeDateISO8601").value;
-					}
-				});
 
 				localDatePicker({
 					input: '.openDate',
@@ -356,7 +349,7 @@
 			
 		<sakai-rubric-association styleClass="checkbox" style="margin-left:10px;display:none;"
 
-			token='<h:outputText value="#{ForumTool.rbcsToken}"/>'
+            site-id='<h:outputText value="#{ForumTool.siteId}" />'
 			dont-associate-label='<h:outputText value="#{msgs.forum_dont_associate_label}" />'
 			dont-associate-value="0"
 			associate-label='<h:outputText value="#{msgs.forum_associate_label}" />'

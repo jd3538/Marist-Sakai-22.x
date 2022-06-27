@@ -143,9 +143,9 @@ import org.sakaiproject.exception.TypeException;
 import org.sakaiproject.messaging.api.Message;
 import org.sakaiproject.messaging.api.MessageMedium;
 import org.sakaiproject.messaging.api.UserMessagingService;
-import org.sakaiproject.rubrics.logic.RubricsConstants;
-import org.sakaiproject.rubrics.logic.RubricsService;
-import org.sakaiproject.rubrics.logic.model.ToolItemRubricAssociation;
+import org.sakaiproject.rubrics.api.RubricsConstants;
+import org.sakaiproject.rubrics.api.RubricsService;
+import org.sakaiproject.rubrics.api.model.ToolItemRubricAssociation;
 import org.sakaiproject.search.api.SearchService;
 import org.sakaiproject.service.gradebook.shared.AssessmentNotFoundException;
 import org.sakaiproject.service.gradebook.shared.CategoryDefinition;
@@ -1478,6 +1478,7 @@ public class AssignmentServiceImpl implements AssignmentService, EntityTransferr
         task.setReference(reference);
         task.setSystem(true);
         task.setDescription(assignment.getTitle());
+        task.setGroups(assignment.getGroups());
 
         if (!assignment.getHideDueDate()) {
             task.setDue(assignment.getDueDate());
@@ -2876,6 +2877,21 @@ public class AssignmentServiceImpl implements AssignmentService, EntityTransferr
 
         Integer scale = assignment.getScaleFactor() != null ? assignment.getScaleFactor() : getScaleFactor();
         return getGradeDisplay(grade, assignment.getTypeOfGrade(), scale);
+    }
+
+    public boolean isGradeOverridden(AssignmentSubmission submission, String submitter) {
+
+        Assignment assignment = submission.getAssignment();
+
+        if (!assignment.getIsGroup()) {
+            return false;
+        }
+
+        Optional<AssignmentSubmissionSubmitter> submissionSubmitter
+            = submission.getSubmitters().stream()
+                .filter(s -> s.getSubmitter().equals(submitter)).findAny();
+
+        return submissionSubmitter.isPresent() && StringUtils.isNotBlank(submissionSubmitter.get().getGrade());
     }
 
     /**
@@ -5016,13 +5032,6 @@ public class AssignmentServiceImpl implements AssignmentService, EntityTransferr
     }
 
     @Override
-    public boolean existsTimeSheetEntries(AssignmentSubmissionSubmitter asnSubmissionSubmitter) {
-        AssignmentSubmission submission = asnSubmissionSubmitter.getSubmission();
-        String reference = AssignmentReferenceReckoner.reckoner().submission(submission).reckon().getReference();
-        return timeSheetService.existsAny(reference);
-    }
-
-    @Override
     public boolean isValidTimeSheetTime(String time) {
         return timeSheetService.isValidTimeSheetTime(time);
     }
@@ -5044,4 +5053,8 @@ public class AssignmentServiceImpl implements AssignmentService, EntityTransferr
         return timeSheetService.intToTime(time);
     }
 
+    @Override
+    public String getContentReviewServiceName() {
+        return this.contentReviewService.getServiceName();
+    }
 }

@@ -2228,6 +2228,11 @@ GbGradeTable.defaultSortCompare = function(a, b) {
     if (parseFloat(a) < parseFloat(b)) {
       return -1;
     }
+    if (isNaN(a) && isNaN(b)) {
+      a = Array.isArray(a) ? a[0] : a;
+      b = Array.isArray(b) ? b[0] : b;
+      return a.localeCompare(b);
+    }
     return 0;
 };
 
@@ -2251,8 +2256,8 @@ GbGradeTable.sort = function(colIndex, direction) {
   }
 
   clone.sort(function(row_a, row_b) {
-    var a = GbGradeTable.localizedStringToNumber(row_a[colIndex]);
-    var b = GbGradeTable.localizedStringToNumber(row_b[colIndex]);
+    var a = isNaN(row_a[colIndex]) ? row_a[colIndex] : GbGradeTable.localizedStringToNumber(row_a[colIndex]);
+    var b = isNaN(row_b[colIndex]) ? row_b[colIndex] : GbGradeTable.localizedStringToNumber(row_b[colIndex]);
 
     return sortCompareFunction(a, b);
   });
@@ -2818,10 +2823,12 @@ GbGradeTable.setupCellMetaDataSummary = function() {
           GbGradeTable.templates.metadata.process(metadata)
         );
 
-        if (metadata.assignment && metadata.assignment.externalAppName) {
-          var externalFlag = $("#"+cellKey).find('.gb-external-app-wrapper');
-          externalFlag.find('.gb-flag-external').addClass(metadata.assignment.externalAppIconCSS);
-          externalFlag.html(externalFlag.html().replace('{0}', metadata.assignment.externalAppName));
+        if (metadata.assignment && metadata.assignment.externalAppName && metadata.assignment.externalAppIconCSS) {
+          const externalFlag = $(`#${cellKey}`).find('.gb-external-app-wrapper');
+          if (externalFlag.length) {
+            externalFlag.find('.gb-flag-external').addClass(metadata.assignment.externalAppIconCSS);
+            externalFlag.html(externalFlag.html().replace('{0}', metadata.assignment.externalAppName));
+          }
         }
 
         $("#"+cellKey).hide().on("click", ".gb-metadata-close", function() {

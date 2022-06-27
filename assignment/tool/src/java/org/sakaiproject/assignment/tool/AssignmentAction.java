@@ -38,6 +38,8 @@ import static org.sakaiproject.assignment.api.AssignmentConstants.GRADE_SUBMISSI
 import static org.sakaiproject.assignment.api.AssignmentConstants.NEW_ASSIGNMENT_ADD_TO_GRADEBOOK;
 import static org.sakaiproject.assignment.api.AssignmentConstants.PROP_ASSIGNMENT_ASSOCIATE_GRADEBOOK_ASSIGNMENT;
 import static org.sakaiproject.assignment.api.AssignmentConstants.STATE_CONTEXT_STRING;
+import static org.sakaiproject.assignment.api.AssignmentConstants.UNGRADED_GRADE_STRING;
+import static org.sakaiproject.assignment.api.AssignmentConstants.UNGRADED_GRADE_TYPE_STRING;
 import static org.sakaiproject.assignment.api.AssignmentServiceConstants.NEW_ASSIGNMENT_CHECK_ANONYMOUS_GRADING;
 import static org.sakaiproject.assignment.api.AssignmentServiceConstants.PROP_ASSIGNMENT_GROUP_FILTER_ENABLED;
 import static org.sakaiproject.assignment.api.AssignmentServiceConstants.REFERENCE_ROOT;
@@ -212,8 +214,9 @@ import org.sakaiproject.exception.SakaiException;
 import org.sakaiproject.exception.ServerOverloadException;
 import org.sakaiproject.javax.PagingPosition;
 import org.sakaiproject.message.api.MessageHeader;
-import org.sakaiproject.rubrics.logic.RubricsConstants;
-import org.sakaiproject.rubrics.logic.RubricsService;
+import org.sakaiproject.rubrics.api.beans.AssociationTransferBean;
+import org.sakaiproject.rubrics.api.RubricsConstants;
+import org.sakaiproject.rubrics.api.RubricsService;
 import org.sakaiproject.scoringservice.api.ScoringAgent;
 import org.sakaiproject.scoringservice.api.ScoringComponent;
 import org.sakaiproject.scoringservice.api.ScoringService;
@@ -1069,7 +1072,6 @@ public class AssignmentAction extends PagedResourceActionII {
      * Site property for export rubric in pdf
      */
     private static final String RUBRICS_EXPORT_PDF = "enablePdfExport";
-    private static final String RUBRICS_EXPORT_PDF_SERVER_PROPERTY = "rubrics.export.pdf";
 
     private static final String FLAG_ON = "on";
     private static final String FLAG_TRUE = "true";
@@ -1092,7 +1094,6 @@ public class AssignmentAction extends PagedResourceActionII {
     private static final String CONTEXT_GO_NEXT_UNGRADED_ENABLED = "goNextUngradedEnabled";
     private static final String CONTEXT_GO_PREV_UNGRADED_ENABLED = "goPrevUngradedEnabled";
     private static final String PARAMS_VIEW_SUBS_ONLY_CHECKBOX = "chkSubsOnly1";
-    private static final String RUBRIC_TOKEN = "rbcs-token";
     private static ResourceLoader rb = new ResourceLoader("assignment");
     private boolean nextUngraded = false;
     private boolean prevUngraded = false;
@@ -1520,8 +1521,6 @@ public class AssignmentAction extends PagedResourceActionII {
             context.put("assignmentscheck", state.getAttribute(HAS_MULTIPLE_ASSIGNMENTS));
         }
 
-        context.put(RUBRIC_TOKEN, rubricsService.generateJsonWebToken(RubricsConstants.RBCS_TOOL_ASSIGNMENT));
-
         return template;
 
     } // buildMainPanelContext
@@ -1778,9 +1777,9 @@ public class AssignmentAction extends PagedResourceActionII {
                 state.setAttribute(AssignmentConstants.ASSIGNMENT_INPUT_ADD_SUBMISSION_TIME_SPENT, submissionTimeSpent);
 
                 String timeSpent = assignmentService.getTotalTimeSheet(submitterA.get());
+                state.setAttribute(ResourceProperties.ASSIGNMENT_INPUT_ADD_TIME_SPENT, timeSpent != null ? timeSpent : "");
                	if (StringUtils.isNotBlank(timeSpent)) {
                	    context.put("timeSheetEntries", assignmentService.getTimeSheetEntries(submitterA.get()));
-                    state.setAttribute(ResourceProperties.ASSIGNMENT_INPUT_ADD_TIME_SPENT, timeSpent);
                     isAnyRegTimeSheet = true;
                	}
             }
@@ -1846,7 +1845,7 @@ public class AssignmentAction extends PagedResourceActionII {
         context.put("attachments", stripInvisibleAttachments(state.getAttribute(ATTACHMENTS)));
         context.put("new_attachments", newAttachments);
         context.put("userDirectoryService", userDirectoryService);
-        context.put(RUBRICS_EXPORT_PDF, serverConfigurationService.getBoolean(RUBRICS_EXPORT_PDF_SERVER_PROPERTY, true));
+        context.put(RUBRICS_EXPORT_PDF, serverConfigurationService.getBoolean(RubricsConstants.RBCS_EXPORT_PDF, true));
 
         context.put("contentTypeImageService", contentTypeImageService);
         context.put("currentTime", Instant.now());
@@ -2028,7 +2027,7 @@ public class AssignmentAction extends PagedResourceActionII {
             if (next instanceof Reference) {
                 Reference attachment = (Reference) next;
                 // inline submissions should not show up in the UI's lists of attachments
-                if (!"true".equals(attachment.getProperties().getProperty(AssignmentConstants.PROP_INLINE_SUBMISSION))) {
+                if (isVisibleAttachment(attachment)) {
                     stripped.add(attachment);
                 }
             }
@@ -2044,11 +2043,15 @@ public class AssignmentAction extends PagedResourceActionII {
         Map<String, Reference> submissionAttachmentReferences = new HashMap<>();
         submission.getAttachments().forEach(refId -> {
             Reference reference = entityManager.newReference(refId);
-            if (!"true".equals(reference.getProperties().getProperty(AssignmentConstants.PROP_INLINE_SUBMISSION))) {
+            if (isVisibleAttachment(reference)) {
                 submissionAttachmentReferences.put(refId, reference);
             }
         });
         return submissionAttachmentReferences;
+    }
+
+    private boolean isVisibleAttachment(Reference r) {
+        return r.getProperties() != null && !"true".equals(r.getProperties().getProperty(AssignmentConstants.PROP_INLINE_SUBMISSION));
     }
 
     /**
@@ -2219,6 +2222,25 @@ public class AssignmentAction extends PagedResourceActionII {
         context.put("value_ASSIGNMENT_INPUT_ADD_TIME_SPENT", state.getAttribute(ResourceProperties.ASSIGNMENT_INPUT_ADD_TIME_SPENT));
         context.put("isTimesheet", assignmentService.isTimeSheetEnabled((String) state.getAttribute(STATE_CONTEXT_STRING)));
 
+        try {
+            // Get site ID
+            String siteId = toolManager.getCurrentPlacement().getContext();
+            // Get site by ID
+            Site currentSite = siteService.getSite(siteId);
+            // Assignments Tool Configuration
+            ToolConfiguration toolConfig = currentSite.getToolForCommonId(TOOL_ID);
+                    
+            // Get visibility value of assignments tool
+            String isAssignmentsVisible = toolConfig.getConfig().getProperty(ToolManager.PORTAL_VISIBLE);
+            boolean isVisible = StringUtils.isBlank(isAssignmentsVisible) || StringUtils.equalsIgnoreCase(isAssignmentsVisible, Boolean.TRUE.toString());
+            
+            // Checks if the assignments tool is visible from the LHS Menu.
+            context.put("isAssignmentsToolVisible", isVisible);
+            
+        } catch(IdUnusedException e) {
+            log.error(e.getMessage(), e);
+        }
+                    
         state.removeAttribute(STATE_SUBMITTER);
         String template = (String) getContext(data).get("template");
         return template + TEMPLATE_STUDENT_VIEW_SUBMISSION_CONFIRMATION;
@@ -2598,10 +2620,11 @@ public class AssignmentAction extends PagedResourceActionII {
             }
 
             boolean isAnyRegTimeSheet = false;
-            if (submissionSubmitter.isPresent() && assignmentService.existsTimeSheetEntries(submissionSubmitter.get())) {
+            if (submissionSubmitter.isPresent() && StringUtils.isNotBlank(assignmentService.getTotalTimeSheet(submissionSubmitter.get()))) {
+                context.put("timeSheetEntries", assignmentService.getTimeSheetEntries(submissionSubmitter.get()));
             	isAnyRegTimeSheet = true;
-           		context.put("isAnyRegTimeSheet", isAnyRegTimeSheet);
             }
+            context.put("isAnyRegTimeSheet", isAnyRegTimeSheet);
 
             Map<String, String> submissionProperties = submission.getProperties();
             if (submissionProperties.get(ResourceProperties.PROP_SUBMISSION_PREVIOUS_FEEDBACK_COMMENT) != null) {
@@ -2683,6 +2706,24 @@ public class AssignmentAction extends PagedResourceActionII {
             context.put("itemHelpers", itemHelpers);
             context.put("taggable", Boolean.valueOf(true));
         }
+        
+        try {
+            // Get site ID
+            String siteId = toolManager.getCurrentPlacement().getContext();
+            // Get site by ID
+            Site currentSite = siteService.getSite(siteId);
+            // Assignments Tool Configuration
+            ToolConfiguration toolConfig = currentSite.getToolForCommonId(TOOL_ID);
+                    
+            // Get visibility value of assignments tool
+            String isAssignmentsVisible = toolConfig.getConfig().getProperty(ToolManager.PORTAL_VISIBLE);
+            
+            // Checks if the assignments tool is visible from the LHS Menu.
+            context.put("isAssignmentsToolVisible", StringUtils.equalsIgnoreCase(isAssignmentsVisible, Boolean.TRUE.toString()));
+            
+        } catch(IdUnusedException e) {
+            log.error(e.getMessage(), e);
+        }
 
         // put supplement item into context
         supplementItemIntoContext(state, context, assignment, submission);
@@ -2692,7 +2733,7 @@ public class AssignmentAction extends PagedResourceActionII {
         }
         
         context.put("submitterNames", getSubmitterFormattedNames(submission, false));
-        context.put(RUBRICS_EXPORT_PDF, serverConfigurationService.getBoolean(RUBRICS_EXPORT_PDF_SERVER_PROPERTY, true));
+        context.put(RUBRICS_EXPORT_PDF, serverConfigurationService.getBoolean(RubricsConstants.RBCS_EXPORT_PDF, true));
 
         context.put("name_ASSIGNMENT_INPUT_ADD_TIME_SPENT", ResourceProperties.ASSIGNMENT_INPUT_ADD_TIME_SPENT);
         context.put("value_ASSIGNMENT_INPUT_ADD_TIME_SPENT", state.getAttribute(ResourceProperties.ASSIGNMENT_INPUT_ADD_TIME_SPENT));
@@ -2741,7 +2782,7 @@ public class AssignmentAction extends PagedResourceActionII {
         context.put("assignments", assignments.iterator());
 
         // allow add assignment?
-        Map<String, List<PeerAssessmentItem>> peerAssessmentItemsMap = new HashMap<String, List<PeerAssessmentItem>>();
+        Map<String, List<PeerAssessmentItem>> peerAssessmentItemsMap = new HashMap<>();
         boolean allowAddAssignment = assignmentService.allowAddAssignment(contextString);
         if (!allowAddAssignment) {
             //this is the same requirement for displaying the assignment link for students
@@ -2775,6 +2816,22 @@ public class AssignmentAction extends PagedResourceActionII {
         state.setAttribute("rateStudent", rateStudent);
 
         context.put("peerAssessmentItemsMap", peerAssessmentItemsMap);
+
+        Map<String, Long> rubricMap = new HashMap<>();
+        assignments.forEach(a -> {
+
+            try {
+                Optional<AssociationTransferBean> optAssociation
+                    = rubricsService.getAssociationForToolAndItem(RubricsConstants.RBCS_TOOL_ASSIGNMENT, a.getId(), a.getContext());
+                if (optAssociation.isPresent()) {
+                    rubricMap.put(a.getId(), optAssociation.get().rubricId);
+                }
+            } catch (Exception e) {
+                log.error("Failed to load rubric map", e);
+            }
+        });
+
+        context.put("rubricMap", rubricMap);
 
         // allow get assignment
         context.put("allowGetAssignment", assignmentService.allowGetAssignment(contextString));
@@ -2909,13 +2966,15 @@ public class AssignmentAction extends PagedResourceActionII {
         // Anon grading enabled/disabled
         context.put("enableAnonGrading", serverConfigurationService.getBoolean(AssignmentConstants.SAK_PROP_ENABLE_ANON_GRADING, false));
         boolean forceAnonGrading = false;
+        String siteId = (String) state.getAttribute(STATE_CONTEXT_STRING);
         try {
-            Site site = siteService.getSite((String) state.getAttribute(STATE_CONTEXT_STRING));
+            Site site = siteService.getSite(siteId);
             forceAnonGrading = site.getProperties().getBooleanProperty(AssignmentConstants.SAK_PROP_FORCE_ANON_GRADING);
         } catch (EntityPropertyTypeException | EntityPropertyNotDefinedException | SakaiException se) {
             log.debug("Failed to find if anonymous grading is forced.");
         }
         context.put("forceAnonGrading", forceAnonGrading);
+        context.put("siteId", siteId);
 
         // is the assignment an new assignment
         String assignmentId = (String) state.getAttribute(EDIT_ASSIGNMENT_ID);
@@ -2924,6 +2983,18 @@ public class AssignmentAction extends PagedResourceActionII {
             if (a != null) {
                 context.put("assignmentId", assignmentId);
                 context.put("assignment", a);
+                if (state.getAttribute(RUBRIC_ASSOCIATION) == null) {
+                    try {
+                        Optional<AssociationTransferBean> optAssociation
+                            = rubricsService.getAssociationForToolAndItem(RubricsConstants.RBCS_TOOL_ASSIGNMENT, a.getId(), siteId);
+                        if (optAssociation.isPresent()) {
+                            state.setAttribute(RUBRIC_ASSOCIATION, (new ObjectMapper()).writeValueAsString(optAssociation.get()));
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to get rubric association for assignment {}", assignmentId);
+                    }
+                }
+
                 rangeAndGroups.buildInstructorNewEditAssignmentContextGroupCheck(context, a);
 
                 // controls to disable which groups can be changed
@@ -4025,7 +4096,7 @@ public class AssignmentAction extends PagedResourceActionII {
         // Check if the assignment has a rubric associated or not
         context.put("hasAssociatedRubric", assignment.isPresent() && rubricsService.hasAssociatedRubric(RubricsConstants.RBCS_TOOL_ASSIGNMENT, assignment.get().getId()));
 
-        context.put(RUBRICS_EXPORT_PDF, serverConfigurationService.getBoolean(RUBRICS_EXPORT_PDF_SERVER_PROPERTY, true));
+        context.put(RUBRICS_EXPORT_PDF, serverConfigurationService.getBoolean(RubricsConstants.RBCS_EXPORT_PDF, true));
 
         String siteId = (String) state.getAttribute(STATE_CONTEXT_STRING);
         String toolId = toolManager.getCurrentPlacement().getId();
@@ -4714,6 +4785,16 @@ public class AssignmentAction extends PagedResourceActionII {
             addProviders(context, state);
             addActivity(context, assignment);
             context.put("taggable", Boolean.TRUE);
+        }
+
+        try {
+            Optional<AssociationTransferBean> optAssociation
+                = rubricsService.getAssociationForToolAndItem(RubricsConstants.RBCS_TOOL_ASSIGNMENT, assignment.getId(), assignment.getContext());
+            if (optAssociation.isPresent()) {
+                context.put("rubricId", optAssociation.get().rubricId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to get association", e);
         }
 
         context.put("submissionTypeTable", submissionTypeTable());
@@ -8367,7 +8448,10 @@ public class AssignmentAction extends PagedResourceActionII {
                         excludeSelfPlag, storeInstIndex, studentPreview, excludeType, excludeValue, contentId, contentLaunchNewWindow, checkIsEstimate, checkEstimateRequired, timeEstimate);
 
                 //RUBRICS, Save the binding between the assignment and the rubric
-                rubricsService.saveRubricAssociation(RubricsConstants.RBCS_TOOL_ASSIGNMENT, a.getId(), getRubricConfigurationParameters(params));
+                Map<String, String> rubricParams = getRubricConfigurationParameters(params, gradeType);
+                if (!rubricParams.isEmpty()) {
+                    rubricsService.saveRubricAssociation(RubricsConstants.RBCS_TOOL_ASSIGNMENT, a.getId(), rubricParams);
+                }
 
                 if (post) {
                     // we need to update the submission
@@ -8650,9 +8734,9 @@ public class AssignmentAction extends PagedResourceActionII {
      * @param params
      * @return
      */
-    private HashMap<String,String> getRubricConfigurationParameters(ParameterParser params){
+    private Map<String,String> getRubricConfigurationParameters(ParameterParser params, Assignment.GradeType gradeType){
 
-        HashMap<String,String> parametersHash = new HashMap<>();
+        Map<String,String> parametersHash = new HashMap<>();
         //Get the parameters
         Iterator it2 = params.getNames();
         while (it2.hasNext()) {
@@ -11050,6 +11134,9 @@ public class AssignmentAction extends PagedResourceActionII {
             //this is only set during the read only view, so just return
             return false;
         }
+
+	    boolean preExistingAlerts = state.getAttribute(STATE_MESSAGE) != null;
+
         ParameterParser params = data.getParameters();
         String submissionId = params.getString("submissionId");
         if (submissionId != null) {
@@ -11186,8 +11273,8 @@ public class AssignmentAction extends PagedResourceActionII {
                             addAlert(state, rb.getString("peerassessment.alert.savenoscorecomment"));
                         }
                     }
-                    if (("submit".equals(gradeOption) || "save".equals(gradeOption)) && state.getAttribute(STATE_MESSAGE) == null) {
-                        if (changed) {
+                    if (("submit".equals(gradeOption) || "save".equals(gradeOption))) {
+                        if (changed && state.getAttribute(STATE_MESSAGE) == null) {
                             //save this in the DB
                             assignmentPeerAssessmentService.savePeerAssessmentItem(item);
                             if (scoreChanged) {
@@ -11212,8 +11299,8 @@ public class AssignmentAction extends PagedResourceActionII {
                                 state.setAttribute(GRADE_SUBMISSION_SUBMIT, Boolean.TRUE);
                             }
                         }
-                        if (attachmentsChanged) {
-                            //save new attachments to the DB
+                        if (attachmentsChanged && !preExistingAlerts) {
+                            //save new attachments to the DB as long as there weren't any pre-existing alerts from prior to the form validation
                             assignmentPeerAssessmentService.savePeerAssessmentAttachments(item);
                         }
                     }
@@ -11368,7 +11455,7 @@ public class AssignmentAction extends PagedResourceActionII {
                     }
 
                     // if ungraded and grade type is not "ungraded" type
-                    if ((grade == null || "ungraded".equals(grade)) && (typeOfGrade != UNGRADED_GRADE_TYPE) && "release".equals(gradeOption)) {
+                    if ((grade == null || UNGRADED_GRADE_STRING.equals(grade)) && (typeOfGrade != UNGRADED_GRADE_TYPE) && "release".equals(gradeOption)) {
                         addAlert(state, rb.getString("plespethe2"));
                     }
 
@@ -13871,7 +13958,7 @@ public class AssignmentAction extends PagedResourceActionII {
                         // set grade
                         String grade = StringUtils.trimToNull(w.getGrade());
                         submission.setGrade(grade);
-                        if (grade != null && !grade.equals(rb.getString("gen.nograd")) && !"ungraded".equals(grade)) {
+                        if (grade != null && !grade.equals(rb.getString("gen.nograd")) && !UNGRADED_GRADE_STRING.equals(grade)) {
                             submission.setGraded(true);
                             submission.setGradedBy(userDirectoryService.getCurrentUser() == null ? null : userDirectoryService.getCurrentUser().getId());
                         }
@@ -14822,7 +14909,7 @@ public class AssignmentAction extends PagedResourceActionII {
         } else if (itemString.equalsIgnoreCase(rb.getString("fail"))) {
             itemString = "Fail";
         } else if (itemString.equalsIgnoreCase(rb.getString("ungra")) || itemString.isEmpty()) {
-            itemString = "Ungraded";
+            itemString = UNGRADED_GRADE_TYPE_STRING;
         } else { // Not one of the expected values. Display error message.
             addAlert(state, rb.getFormattedMessage("plesuse0", itemString));
         }
@@ -15043,17 +15130,23 @@ public class AssignmentAction extends PagedResourceActionII {
         User submittedBy;
         Boolean multiGroup = false;
         AssignmentSubmission submission;
+        Boolean hasVisibleAttachments = false;
 
         SubmitterSubmission(User user, AssignmentSubmission submission) {
-            this.user = user;
-            this.submission = submission;
-            reference = AssignmentReferenceReckoner.reckoner().submission(submission).reckon().getReference();
+            this(user, null, submission);
         }
 
         SubmitterSubmission(Group group, AssignmentSubmission submission) {
+            this(null, group, submission);
+        }
+
+        private SubmitterSubmission(User user, Group group, AssignmentSubmission submission) {
+            this.user = user;
             this.group = group;
             this.submission = submission;
             reference = AssignmentReferenceReckoner.reckoner().submission(submission).reckon().getReference();
+            hasVisibleAttachments = CollectionUtils.emptyIfNull(submission.getAttachments()).stream()
+                    .map(r -> entityManager.newReference(r)).anyMatch(ref -> isVisibleAttachment(ref));
         }
 
         public String getGradeForUser(String id) {

@@ -2,6 +2,7 @@ import {RubricsElement} from "./rubrics-element.js";
 import {html} from "/webcomponents/assets/lit-element/lit-element.js";
 import {SharingChangeEvent} from "./sharing-change-event.js";
 import {tr} from "./sakai-rubrics-language.js";
+import "../sakai-editor.js";
 
 export class SakaiRubricCriterionEdit extends RubricsElement {
 
@@ -9,7 +10,6 @@ export class SakaiRubricCriterionEdit extends RubricsElement {
 
     super();
 
-    this.token = "";
     this.criterion = {};
     this.criterionClone = {};
   }
@@ -17,8 +17,10 @@ export class SakaiRubricCriterionEdit extends RubricsElement {
   static get properties() {
 
     return {
-      token: String,
-      criterion: { type: Object, notify: true }
+      siteId: { attribute: "site-id", type: String },
+      rubricId: { attribute: "rubric-id", type: String },
+      criterion: { type: Object, notify: true },
+      isCriterionGroup: {attribute: "is-criterion-group", type: Boolean},
     };
   }
 
@@ -55,22 +57,36 @@ export class SakaiRubricCriterionEdit extends RubricsElement {
         <div class="popover-content form">
           <div class="form-group">
             <label for="criterion-title-field-${this.criterion.id}">
-              <sr-lang key="criterion_title">Criterion Title</sr-lang>
+              ${this.isCriterionGroup ? html`
+                <sr-lang key="criterion_group_title">Criterion Group Title</sr-lang>
+              ` : html`
+                <sr-lang key="criterion_title">Criterion Title</sr-lang>
+              `}
             </label>
             <input id="criterion-title-field-${this.criterion.id}" type="text" class="form-control" value="${this.criterionClone.title}" maxlength="255">
           </div>
           <div class="form-group">
             <label for="criterion-description-field-${this.criterion.id}">
-              <sr-lang key="criterion_description">Criterion Description</sr-lang>
+              ${this.isCriterionGroup ? html`
+                <sr-lang key="criterion_group_description">Criterion Group Description</sr-lang>
+              ` : html`
+                <sr-lang key="criterion_description">Criterion Description</sr-lang>
+              `}
             </label>
-            <textarea id="criterion-description-field-${this.criterion.id}" class="form-control">${this.criterionClone.description}</textarea>
+            <sakai-editor
+              toolbar="BasicText"
+              content="${this.criterionClone.description ? `${this.criterionClone.description}` : ``}"
+              @changed="${this.updateCriterionDescription}"
+              id="criterion-description-field-${this.criterion.id}">
+            </sakai-editor>
           </div>
         </div>
       </div>
     `;
   }
 
-  onFocus(e){
+  onFocus(e) {
+
     e.target.closest('.criterion-row').classList.add("focused");
   }
 
@@ -94,7 +110,7 @@ export class SakaiRubricCriterionEdit extends RubricsElement {
 
       const popover = $(`#edit_criterion_${this.criterion.id}`);
       popover[0].style.top = `${e.target.offsetTop + 20  }px`;
-      popover[0].style.left = `${e.target.offsetLeft - popover.width()/2  }px`;
+      popover[0].style.left = `${e.target.offsetLeft - popover.width() / 2  }px`;
       popover.show();
 
       // and highlight the title
@@ -136,20 +152,32 @@ export class SakaiRubricCriterionEdit extends RubricsElement {
 
     e.stopPropagation();
 
-    const edited = {
-      title: document.getElementById(`criterion-title-field-${this.criterion.id}`).value,
-      description: document.getElementById(`criterion-description-field-${this.criterion.id}`).value
-    };
+    const title = document.getElementById(`criterion-title-field-${this.criterion.id}`).value;
+    const description = this.criterionClone.description;
 
-    $.ajax({
-      url: `/rubrics-service/rest/criterions/${this.criterion.id}`,
-      headers: {"authorization": this.token},
+    const body = JSON.stringify([
+      { "op": "replace", "path": "/title", "value": title },
+      { "op": "replace", "path": "/description", "value": description },
+    ]);
+
+    const url = `/api/sites/${this.siteId}/rubrics/${this.rubricId}/criteria/${this.criterion.id}`;
+    fetch(url, {
+      credentials: "include",
+      headers: { "Content-Type": "application/json-patch+json" },
       method: "PATCH",
-      contentType: "application/json",
-      data: JSON.stringify(edited)
+      body
     })
-      .done(data => this.updateUi(data))
-      .fail((jqXHR, error, message) => { console.log(error); console.log(message); });
+    .then(r => {
+
+      if (r.ok) {
+        this.hideToolTip();
+        this.dispatchEvent(new CustomEvent('criterion-edited', { detail: { id: this.criterion.id, title, description } }));
+        this.dispatchEvent(new SharingChangeEvent());
+      }
+
+      throw new Error("Network error while updating criterion");
+    })
+    .catch (error => console.error(error));
 
     // hide the popover
     this.hideToolTip();
@@ -157,18 +185,15 @@ export class SakaiRubricCriterionEdit extends RubricsElement {
     $(`#edit_criterion_${this.criterion.id}`).hide();
   }
 
-  updateUi(data) {
-
-    this.hideToolTip();
-    this.dispatchEvent(new CustomEvent('criterion-edited', {detail: {id: data.id, title: data.title, description: data.description}}));
-    this.dispatchEvent(new SharingChangeEvent());
-  }
-
   openEditWithKeyboard(e) {
 
     if (e.keyCode == 32) {
       this.editCriterion(e);
     }
+  }
+
+  updateCriterionDescription(e) {
+    this.criterionClone.description = e.detail.content;
   }
 }
 

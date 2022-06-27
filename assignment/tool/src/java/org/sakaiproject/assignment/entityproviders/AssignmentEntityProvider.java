@@ -33,8 +33,10 @@ import static org.sakaiproject.assignment.api.AssignmentServiceConstants.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.fileupload.FileItem;
 
+import org.sakaiproject.assignment.api.AssignmentConstants;
 import org.sakaiproject.assignment.api.AssignmentReferenceReckoner;
 import org.sakaiproject.assignment.api.AssignmentService;
+import org.sakaiproject.assignment.api.ContentReviewResult;
 import org.sakaiproject.assignment.api.MultiGroupRecord;
 import org.sakaiproject.assignment.tool.AssignmentToolUtils;
 import org.sakaiproject.assignment.api.model.*;
@@ -62,9 +64,9 @@ import org.sakaiproject.entitybroker.exception.EntityNotFoundException;
 import org.sakaiproject.entitybroker.util.AbstractEntityProvider;
 import org.sakaiproject.exception.IdUnusedException;
 import org.sakaiproject.exception.PermissionException;
-import org.sakaiproject.rubrics.logic.RubricsConstants;
 import org.sakaiproject.service.gradebook.shared.GradebookExternalAssessmentService;
 import org.sakaiproject.service.gradebook.shared.GradebookService;
+import org.sakaiproject.rubrics.api.RubricsConstants;
 import org.sakaiproject.site.api.Group;
 import org.sakaiproject.site.api.Site;
 import org.sakaiproject.site.api.SiteService;
@@ -660,7 +662,9 @@ public class AssignmentEntityProvider extends AbstractEntityProvider implements 
         List<SimpleSubmission> submissions
             = assignment.getSubmissions().stream().map(as -> {
                 try {
-                    return new SimpleSubmission(as, simpleAssignment, activeSubmitters);
+                    SimpleSubmission simple = new SimpleSubmission(as, simpleAssignment, activeSubmitters);
+                    simple.setProperties(addOriginalityProperties(as));
+                    return simple;
                 } catch (Exception e) {
                     log.error("Exception while creating SimpleSubmission", e);
                     // This can happen if there are no submitters.
@@ -678,8 +682,8 @@ public class AssignmentEntityProvider extends AbstractEntityProvider implements 
 
             for (SimpleSubmission submission : submissions) {
                 if ( ! submission.userSubmission ) continue;
-				String ltiSubmissionLaunch = null;
-                for(SimpleSubmitter submitter: submission.submitters) {
+                String ltiSubmissionLaunch = null;
+                for ( SimpleSubmitter submitter: submission.submitters ) {
                     if ( submitter.id != null ) {
                         ltiSubmissionLaunch = "/access/basiclti/site/" + siteId + "/content:" + contentKey + "?for_user=" + submitter.id;
 
@@ -705,6 +709,24 @@ public class AssignmentEntityProvider extends AbstractEntityProvider implements 
         data.put("letterGradeOptions", lOptions);
 
         return new ActionReturn(data);
+    }
+    
+    private Map<String, String> addOriginalityProperties(AssignmentSubmission as) {
+
+        Map<String, String> existing = as.getProperties();
+        existing.put("originalityServiceName", this.assignmentService.getContentReviewServiceName());
+        int reviewCounting = 1;
+        for (ContentReviewResult c: this.assignmentService.getSortedContentReviewResults(as)) {   //real part; will work on a Turnitin-enabled server
+            existing.put("originalityLink" + Integer.toString(reviewCounting), c.getReviewReport());
+            existing.put("originalityIcon" + Integer.toString(reviewCounting), c.getReviewIconCssClass());
+            existing.put("originalityScore" + Integer.toString(reviewCounting), Integer.toString(c.getReviewScore()));
+            existing.put("originalityName" + Integer.toString(reviewCounting), c.getContentResource().getProperties().getPropertyFormatted(ResourceProperties.PROP_DISPLAY_NAME));
+            existing.put("originalityInline" + Integer.toString(reviewCounting), Boolean.valueOf(c.isInline()).toString());
+            existing.put("originalityStatus" + Integer.toString(reviewCounting), Boolean.valueOf(c.isPending()).toString());
+            existing.put("originalityError" + Integer.toString(reviewCounting), c.getReviewError());
+            reviewCounting++;
+        }
+        return existing;
     }
 
     @EntityCustomAction(action = "grades", viewKey = EntityView.VIEW_LIST)
@@ -752,7 +774,7 @@ public class AssignmentEntityProvider extends AbstractEntityProvider implements 
 
             if (submitters.size() > 0) {
                 if (assignment.getTypeOfGrade() == Assignment.GradeType.PASS_FAIL_GRADE_TYPE) {
-                    return s.getGrade() == null ? "ungraded" : s.getGrade();
+                    return s.getGrade() == null ? AssignmentConstants.UNGRADED_GRADE_STRING : s.getGrade();
                 } else {
                     return assignmentService.getGradeDisplay(s.getGrade(), assignment.getTypeOfGrade(), assignment.getScaleFactor());
                 }
@@ -790,6 +812,7 @@ public class AssignmentEntityProvider extends AbstractEntityProvider implements 
         AssignmentSubmission submission = null;
         try {
             submission = assignmentService.getSubmission(submissionId);
+            submission.setProperties(addOriginalityProperties(submission));
         } catch (IdUnusedException iue) {
             throw new EntityException("submissionId not found.", "", HttpServletResponse.SC_BAD_REQUEST);
         } catch (PermissionException pe) {
@@ -819,12 +842,27 @@ public class AssignmentEntityProvider extends AbstractEntityProvider implements 
 
         if (assignment.getTypeOfGrade() == Assignment.GradeType.SCORE_GRADE_TYPE) {
             grade = assignmentToolUtils.scalePointGrade(grade, assignment.getScaleFactor(), alerts);
-        } else if (assignment.getTypeOfGrade() == Assignment.GradeType.PASS_FAIL_GRADE_TYPE && grade.equals("ungraded")) {
+        } else if (assignment.getTypeOfGrade() == Assignment.GradeType.PASS_FAIL_GRADE_TYPE && grade.equals(AssignmentConstants.UNGRADED_GRADE_STRING)) {
             grade = null;
         }
 
         Map<String, Object> options = new HashMap<>();
         options.put(GRADE_SUBMISSION_GRADE, grade);
+
+        // check for grade overrides
+        if (assignment.getIsGroup()) {
+            submission.getSubmitters().forEach(s -> {
+
+                String ug = StringUtils.trimToNull((String) params.get(GRADE_SUBMISSION_GRADE + "_" + s.getSubmitter()));
+                if (ug != null && !ug.equals(AssignmentConstants.UNGRADED_GRADE_STRING)) {
+                    if (assignment.getTypeOfGrade() == Assignment.GradeType.SCORE_GRADE_TYPE) {
+                        ug = assignmentToolUtils.scalePointGrade(ug, assignment.getScaleFactor(), alerts);
+                    }
+                    options.put(GRADE_SUBMISSION_GRADE + "_" + s.getSubmitter(), ug);
+                }
+            });
+        }
+
         options.put(GRADE_SUBMISSION_FEEDBACK_TEXT, feedbackText);
         options.put(GRADE_SUBMISSION_FEEDBACK_COMMENT, feedbackComment);
         options.put(GRADE_SUBMISSION_PRIVATE_NOTES, privateNotes);
@@ -1458,12 +1496,16 @@ public class AssignmentEntityProvider extends AbstractEntityProvider implements 
         private String displayName;
         private String sortName;
         private String displayId;
+        private String grade;
+        private boolean overridden;
 
         public SimpleSubmitter(AssignmentSubmissionSubmitter ass, boolean anonymousGrading) throws UserNotDefinedException {
 
             super();
 
             this.id = ass.getSubmitter();
+            this.grade = assignmentService.getGradeForSubmitter(ass.getSubmission(), id);
+            this.overridden = assignmentService.isGradeOverridden(ass.getSubmission(), id);
             if (!anonymousGrading) {
                 User user = userDirectoryService.getUser(this.id);
                 this.displayName = user.getDisplayName();

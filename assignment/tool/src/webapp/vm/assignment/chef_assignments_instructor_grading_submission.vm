@@ -346,7 +346,7 @@
         </div>
         <div role="tabpanel" class="tab-pane" id="rubric">
             <sakai-rubric-grading
-                token="$!rbcs-token"
+                site-id="$!assignment.Context"
                 tool-id="sakai.assignment"
                 entity-id="$assignment.Id"
                 evaluated-item-id="$submission.Id"
@@ -477,13 +477,14 @@
                                     <div class="row-override">
                                         <label>$formattedText.escapeHtml($!submitterName)</label>
                                         <div class="shorttext">
-                                            <span>$tlang.getString("gen.grade.override")</span> <input type="text"
+                                            <span>$tlang.getString("gen.grade.override")</span>
+                                            <input type="text"
                                                 name="$group_name_grade"
                                                 size="5"
                                                 maxlength="11"
                                                 value="$!group_value_grade"
                                                 id="grade"
-                                                onkeypress="return ASN.handleEnterKeyPress(event);"/>
+                                                onkeypress="return ASN.handleEnterKeyPress(event);" />
                                             <span>($tlang.getString("grade.max") $!service.getMaxPointGradeDisplay($!assignment.ScaleFactor, $!assignment.MaxGradePoint))</span>
                                         </div>
                                     </div>
@@ -864,7 +865,6 @@
         </div>
         <input type="hidden" id="grade-is-released" name="grade-is-released" value="$submission.getGradeReleased()" />
         <input type="hidden" name="sakai_csrf_token" value="$sakai_csrf_token"/>
-        <input type="hidden" name="rbcs-token" value="$!rbcs-token"/>
     </form>
 </div>
 <!-- end: check_assignments_instructor_grading_submission.vm  -->

@@ -1,4 +1,4 @@
-import {SakaiElement} from "../sakai-element.js";
+import { SakaiElement } from "../sakai-element.js";
 import { getUserLocale } from "../sakai-portal-utils.js";
 
 class RubricsElement extends SakaiElement {
@@ -19,10 +19,10 @@ class RubricsElement extends SakaiElement {
     return available;
   }
 
-  initLightbox(token, i18n) {
+  initLightbox(i18n, siteId, enablePdfExport) {
 
     if (this.isUtilsAvailable()) {
-      window.top.rubrics.utils.initLightbox(token, i18n);
+      window.top.rubrics.utils.initLightbox(i18n, siteId, enablePdfExport);
     }
   }
 
@@ -39,7 +39,7 @@ class RubricsElement extends SakaiElement {
     let highest = Number.NEGATIVE_INFINITY;
     let tmp;
 
-    for (let i=myArray.length-1; i>=0; i--) {
+    for (let i = myArray.length - 1; i >= 0; i--) {
       tmp = myArray[i].points;
       if (tmp < lowest) lowest = tmp;
       if (tmp > highest) highest = tmp;
@@ -49,6 +49,11 @@ class RubricsElement extends SakaiElement {
       high: highest,
       low: lowest
     };
+  }
+
+  isCriterionGroup(criterion) {
+
+    return criterion.ratings.length === 0;
   }
 }
 

@@ -146,8 +146,8 @@ import org.sakaiproject.util.comparator.GroupTitleComparator;
 import org.sakaiproject.util.comparator.RoleIdComparator;
 
 import org.springframework.orm.hibernate5.HibernateOptimisticLockingFailureException;
-import org.sakaiproject.rubrics.logic.RubricsConstants;
-import org.sakaiproject.rubrics.logic.RubricsService;
+import org.sakaiproject.rubrics.api.RubricsConstants;
+import org.sakaiproject.rubrics.api.RubricsService;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -226,7 +226,6 @@ public class DiscussionForumTool {
   @ManagedProperty(value="#{Components[\"org.sakaiproject.api.app.messageforums.AreaManager\"]}")
   private AreaManager areaManager;
   private int numPendingMessages = 0;
-  private boolean refreshPendingMsgs = true;
   
   private static final String TOPIC_ID = "topicId";
   private static final String FORUM_ID = "forumId";
@@ -421,7 +420,7 @@ public class DiscussionForumTool {
   private ToolManager toolManager;
   @ManagedProperty(value="#{Components[\"org.sakaiproject.thread_local.api.ThreadLocalManager\"]}")
   private ThreadLocalManager threadLocalManager;
-  @ManagedProperty(value="#{Components[\"org.sakaiproject.rubrics.logic.RubricsService\"]}")
+  @ManagedProperty(value="#{Components[\"org.sakaiproject.rubrics.api.RubricsService\"]}")
   private RubricsService rubricsService;
   @ManagedProperty(value = "#{Components[\"org.sakaiproject.time.api.UserTimeService\"]}")
   private UserTimeService userTimeService;
@@ -3427,7 +3426,6 @@ public class DiscussionForumTool {
     attachments.clear();
     prepareRemoveAttach.clear();
     assignments.clear();
-    refreshPendingMsgs = true;
   }
 
   /**
@@ -4647,7 +4645,7 @@ public class DiscussionForumTool {
 		composeTitle = null;
 		attachments.clear();
 
-		getSelectedTopic();
+		selectedTopic = getSelectedTopic();
 		getThreadFromMessage();
 	} catch(Exception e) {
       log.error("Error while editing a message", e);
@@ -4764,7 +4762,7 @@ public class DiscussionForumTool {
 		  return null;
 	  }
 	  
-	  Message message = selectedMessage.getMessage();
+	  Message message = messageManager.getMessageById(selectedMessage.getMessage().getId());
 
 	  // 'delete' this message
 	  message.setDeleted(Boolean.TRUE);
@@ -4842,7 +4840,7 @@ public class DiscussionForumTool {
         displayPendingMsgQueue = false;
       }
 
-      if (refreshPendingMsgs && displayPendingMsgQueue) {
+      if (displayPendingMsgQueue) {
         refreshPendingMessages(membershipList, moderatedTopics);
       }
     }
@@ -4922,8 +4920,6 @@ public class DiscussionForumTool {
 		  	}
 		  }
 	  }
-	  
-	  refreshPendingMsgs = false;
   }
   
   /**
@@ -4945,7 +4941,7 @@ public class DiscussionForumTool {
 	  approveOrDenySelectedMsgs(true);
 	  
 	  if (numPendingMessages > 0)
-		  return PENDING_MSG_QUEUE;
+		  return null;
 	  
 	  return processActionHome();
   }
@@ -4959,7 +4955,7 @@ public class DiscussionForumTool {
 	  approveOrDenySelectedMsgs(false);
 	  
 	  if (numPendingMessages > 0)
-		  return PENDING_MSG_QUEUE;
+		  return null;
 	  
 	  return processActionHome();
   }
@@ -5015,13 +5011,12 @@ public class DiscussionForumTool {
 		  setErrorMessage(getResourceBundleString(NO_MSG_SEL_FOR_APPROVAL));
 	  else
 	  {
+		  refreshPendingMessages(uiPermissionsManager.getCurrentUserMemberships() , forumManager.getModeratedTopicsInSite());
 		  if (approved)
 			  setSuccessMessage(getResourceBundleString(MSGS_APPROVED));
 		  else
 			  setSuccessMessage(getResourceBundleString(MSGS_DENIED));
 	  }
-	  
-	  refreshPendingMsgs = true;
   }
 
   /**
@@ -5056,7 +5051,7 @@ public class DiscussionForumTool {
 	  
 	  }
 	  
-	  refreshPendingMsgs = true;
+	  refreshPendingMessages(uiPermissionsManager.getCurrentUserMemberships() , forumManager.getModeratedTopicsInSite());
 	  
 	  return MESSAGE_VIEW;
   }
@@ -5091,7 +5086,7 @@ public class DiscussionForumTool {
 		  
 	  }
 	  
-	  refreshPendingMsgs = true;
+	  refreshPendingMessages(uiPermissionsManager.getCurrentUserMemberships() , forumManager.getModeratedTopicsInSite());
 	  
 	  return ADD_COMMENT;
   }
@@ -5138,7 +5133,7 @@ public class DiscussionForumTool {
 	      		updateSynopticMessagesForForumComparingOldMessagesCount(getSiteId(), msg.getTopic().getBaseForum().getId(), msg.getTopic().getId(), beforeChangeHM, SynopticMsgcntrManager.NUM_OF_ATTEMPTS);
 	  }
 	  
-	  refreshPendingMsgs = true;
+	  refreshPendingMessages(uiPermissionsManager.getCurrentUserMemberships() , forumManager.getModeratedTopicsInSite());
 	  
 	  return MESSAGE_VIEW;
   }
@@ -7506,7 +7501,7 @@ public class DiscussionForumTool {
 		return "";
 	}
 
-	private String getSiteId() {
+	public String getSiteId() {
 		return toolManager.getCurrentPlacement().getContext();
 	}
 
@@ -8957,12 +8952,7 @@ public class DiscussionForumTool {
 		}
 		return returnRank;
 	}
-    
-    private boolean alwaysShowFullDesc = false;
-    public boolean isAlwaysShowFullDesc(){
-    	return ServerConfigurationService.getBoolean("mc.alwaysShowFullDesc", false); 
-    }
-    
+
     public String getCurrentToolId(){
     	return toolManager.getCurrentPlacement().getId();
     }
@@ -9141,11 +9131,6 @@ public class DiscussionForumTool {
 			}
 		});
 		return list;
-	}
-
-	public String getRbcsToken() {
-		log.debug("getRbcsToken()");
-		return rubricsService.generateJsonWebToken(RubricsConstants.RBCS_TOOL_FORUMS);
 	}
 
 	public boolean hasAssociatedRubric(){

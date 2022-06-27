@@ -1,4 +1,4 @@
-import {loadProperties} from "/webcomponents/sakai-i18n.js";
+import { loadProperties } from "/webcomponents/sakai-i18n.js";
 
 roster.helpers = {};
 
@@ -394,11 +394,8 @@ roster.renderMembership = function (options) {
 
       members.forEach(function (m) {
 
-        m.profileImageUrl = "/direct/profile/" + m.userId + "/image";
-        if (roster.officialPictureMode) {
-          m.profileImageUrl += "/official";
-        }
-        m.profileImageUrl += "?siteId=" + encodeURIComponent(roster.siteId);
+        m.siteId = roster.siteId;
+        m.official = roster.officialPictureMode;
 
         var groupIds = Object.keys(m.groups);
         m.hasGroups = groupIds.length > 0;
@@ -452,8 +449,6 @@ roster.renderMembership = function (options) {
             roster.renderGroupMembership(value);
           }
         });
-
-        profile.attachPopups($('a.profile'));
 
         if (options.userIds) {
           $(window).off('scroll.roster');
@@ -613,36 +608,6 @@ roster.renderMembers = function (members, target, enrollmentsMode, renderAll, op
   if (!renderAll) {
       $(window).trigger('scroll.roster.rendered');
   }
-
-  //Associate the members audio with start and stop actions
-  var $allAudioElem = $('.audioPlayer');
-  $.each(members, function(index, member) {
-
-    const audioId = '#audio-' + member.userId;
-    var $audioPlayer = $('.nameAudioPlayer[data-user-id="' + member.userId + '"]');
-    var audioElem = $(audioId)[0];
-    if (audioElem !== undefined) {
-      $audioPlayer.click(function() {
-        var audioElem = $('#audio-'+$(this).data('userId'))[0];
-        if (audioElem.paused) {
-          $allAudioElem.each(function() {
-            this.pause();
-            this.currentTime = 0;
-            $('.nameAudioPlayer').removeClass('playing');
-          });
-          audioElem.play();
-          $audioPlayer.addClass('playing');
-        } else {
-          audioElem.pause();
-          audioElem.currentTime = 0;
-          $audioPlayer.removeClass('playing');
-        }
-      });
-      audioElem.addEventListener('ended', function(e) {
-        $audioPlayer.removeClass('playing');
-      }, false);
-    }
-  });
 };
 
 roster.getScrollFunction = function (options) {
