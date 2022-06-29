@@ -304,10 +304,10 @@ public class RubricsServiceImpl implements RubricsService, EntityProducer, Entit
 
         rubricRepository.findById(rubricId).ifPresent(rubric -> {
 
-            List<Criterion> sorted = new ArrayList<>();
             Map<Long, Criterion> current = rubric.getCriteria().stream().collect(Collectors.toMap(Criterion::getId, c -> c));
-            sorted = sortedCriterionIds.stream().map(current::get).collect(Collectors.toList());
-            rubric.setCriteria(sorted);
+            List<Criterion> sorted = sortedCriterionIds.stream().map(current::get).collect(Collectors.toList());
+            rubric.getCriteria().clear();
+            rubric.getCriteria().addAll(sorted);
             rubricRepository.save(rubric);
         });
     }
@@ -318,7 +318,8 @@ public class RubricsServiceImpl implements RubricsService, EntityProducer, Entit
 
             Map<Long, Rating> current = criterion.getRatings().stream().collect(Collectors.toMap(Rating::getId, r -> r));
             List<Rating> sorted = sortedRatingIds.stream().map(current::get).collect(Collectors.toList());
-            criterion.setRatings(sorted);
+            criterion.getRatings().clear();
+            criterion.getRatings().addAll(sorted);
             criterionRepository.save(criterion);
         });
     }
@@ -361,7 +362,9 @@ public class RubricsServiceImpl implements RubricsService, EntityProducer, Entit
             rubric.getCriteria().add(criterion);
             rubric = rubricRepository.save(rubric);
 
-            return CriterionTransferBean.of(rubric.getCriteria().get(length));
+            CriterionTransferBean bean = CriterionTransferBean.of(rubric.getCriteria().get(length));
+            bean.isNew = true;
+            return bean;
         });
     }
 
@@ -459,19 +462,19 @@ public class RubricsServiceImpl implements RubricsService, EntityProducer, Entit
         return RatingTransferBean.of(ratingRepository.save(bean.toRating()));
     }
 
-    public void deleteRating(Long ratingId, Long criterionId, String siteId) {
+    public CriterionTransferBean deleteRating(Long ratingId, Long criterionId, String siteId) {
 
         String currentUserId = sessionManager.getCurrentSessionUserId();
 
-        if (StringUtils.isBlank(currentUserId) || !isEditor(siteId)) {
+        if (!isEditor(siteId)) {
             throw new SecurityException("You must be a rubrics editor to create/edit ratings");
         }
 
-        criterionRepository.findById(criterionId).ifPresent(criterion -> {
+        return criterionRepository.findById(criterionId).map(criterion -> {
 
-            criterion.getRatings().removeIf(r -> r.getId() == ratingId);
-            criterionRepository.save(criterion);
-        });
+            criterion.getRatings().removeIf(r -> r.getId().equals(ratingId));
+            return CriterionTransferBean.of(criterionRepository.save(criterion));
+        }).orElseThrow(() -> new IllegalArgumentException());
     }
 
     @Transactional(readOnly = true)
@@ -628,6 +631,10 @@ public class RubricsServiceImpl implements RubricsService, EntityProducer, Entit
     }
 
     public Optional<ToolItemRubricAssociation> saveRubricAssociation(String toolId, String toolItemId, final Map<String, String> params) {
+
+        if (params == null || params.isEmpty()) {
+            throw new IllegalArgumentException("No association params supplied");
+        }
 
         String siteId = toolManager.getCurrentPlacement().getContext();
 

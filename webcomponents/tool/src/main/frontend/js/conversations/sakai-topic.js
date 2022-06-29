@@ -163,7 +163,7 @@ export class SakaiTopic extends reactionsMixin(SakaiElement) {
       topic: this.topic.id,
       siteId: this.topic.siteId,
       privatePost: document.getElementById("conv-post-editor-private-checkbox").checked,
-      anonymous: document.getElementById("conv-post-editor-anonymous-checkbox").checked,
+      anonymous: this.topic.allowAnonymousPosts && document.getElementById("conv-post-editor-anonymous-checkbox").checked,
       draft,
       replyable: true,
     };
@@ -389,7 +389,7 @@ export class SakaiTopic extends reactionsMixin(SakaiElement) {
     if (post.parentThread) {
       const thread = findPost(this.topic, { postId: post.parentThread });
       thread.keepExpanded = true;
-      if (e.detail.created) {
+      if (e.detail.created && !e.detail.post.draft) {
         thread.numberOfThreadReplies += 1;
       }
     }
@@ -529,7 +529,7 @@ export class SakaiTopic extends reactionsMixin(SakaiElement) {
         <sakai-editor id="topic-${this.topic.id}-post-editor" set-focus></sakai-editor>
         <div class="conv-private-checkbox-block">
           <label>
-            <input type="checkbox" @click=${e => this.privatePost = e.target.checked}>${this.i18n.private_topic_reply}
+            <input id="conv-post-editor-private-checkbox" type="checkbox">${this.i18n.private_topic_reply}
           </label>
         </div>
         ${this.topic.allowAnonymousPosts ? html`

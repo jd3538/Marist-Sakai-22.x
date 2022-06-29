@@ -373,16 +373,14 @@ export class SakaiRubricCriteria extends RubricsElement {
 
   deleteRating(e) {
 
+    e.stopPropagation();
+
     const criterion = this.criteriaMap.get(parseInt(e.detail.criterionId));
 
     if (!criterion) {
       console.error(`No criterion found with id ${e.detail.criterionId}`);
       return;
     }
-
-    const ratingIndex = criterion.ratings.findIndex(r => r.id == e.detail.id);
-
-    e.stopPropagation();
 
     const url = `/api/sites/${this.siteId}/rubrics/${this.rubricId}/criteria/${e.detail.criterionId}/ratings/${e.detail.id}`;
     fetch(url, {
@@ -392,10 +390,15 @@ export class SakaiRubricCriteria extends RubricsElement {
     .then(r => {
 
       if (r.ok) {
-        criterion.ratings.splice(ratingIndex, 1);
-        this.requestUpdate();
+        return r.json();
       }
+
       throw new Error("Network error while deleting rating");
+    })
+    .then(c => {
+
+      Object.assign(criterion, c);
+      this.requestUpdate();
     })
     .catch (error => console.error(error));
   }
@@ -423,10 +426,6 @@ export class SakaiRubricCriteria extends RubricsElement {
 
   createCriterionResponse(nc) {
 
-    nc.new = true;
-    if (!nc.ratings) {
-      nc.ratings = [];
-    }
     this.criteria.push(nc);
     this.criteriaMap.set(nc.id, nc);
 
@@ -439,11 +438,10 @@ export class SakaiRubricCriteria extends RubricsElement {
     const criterion = this.criteriaMap.get(e.detail.id);
     criterion.title = e.detail.title;
     criterion.description = e.detail.description;
-    criterion.new = false;
+    criterion.isNew = e.detail.isNew;
     this.requestUpdate();
 
-    const sakaiItemDelete = this.querySelector(`sakai-item-delete[criterion-id="${e.detail.id}"]`);
-    sakaiItemDelete.requestUpdate("criterion", criterion);
+    this.querySelector(`sakai-item-delete[criterion-id="${e.detail.id}"]`).requestUpdate("criterion", criterion);
   }
 
   saveWeights() {

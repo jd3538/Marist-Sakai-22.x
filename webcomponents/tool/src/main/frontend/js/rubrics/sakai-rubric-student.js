@@ -3,7 +3,6 @@ import { html } from "/webcomponents/assets/lit-element/lit-element.js";
 import "./sakai-rubric-criterion-preview.js";
 import "./sakai-rubric-criterion-student.js";
 import "./sakai-rubric-pdf.js";
-import "./sakai-rubric-student-comment.js";
 import { SakaiRubricsLanguage } from "./sakai-rubrics-language.js";
 
 class SakaiRubricStudent extends RubricsElement {
@@ -31,7 +30,7 @@ class SakaiRubricStudent extends RubricsElement {
       rubric: { type: Object },
       rubricId: { attribute: "rubric-id", type: String },
       forcePreview: { attribute: "force-preview", type: Boolean },
-      enablePdfExport: { attribute: "enable-pdf-export", type: Object }
+      enablePdfExport: { attribute: "enable-pdf-export", type: Object },
     };
   }
 
@@ -76,6 +75,12 @@ class SakaiRubricStudent extends RubricsElement {
 
   get rubricId() { return this._rubricId; }
 
+  handleClose() {
+
+    const el = this.querySelector("sakai-rubric-criterion-student");
+    el && el.handleClose();
+  }
+
   shouldUpdate() {
     return this.i18nLoaded && this.rubric && (this.instructor || !this.options.hideStudentPreview);
   }
@@ -102,12 +107,12 @@ class SakaiRubricStudent extends RubricsElement {
 
         ${this.preview || this.forcePreview ? html`
           <sakai-rubric-criterion-preview
-            criteria="${JSON.stringify(this.rubric.criteria)}"
+            .criteria="${this.rubric.criteria}"
             .weighted=${this.rubric.weighted}
           ></sakai-rubric-criterion-preview>
           ` : html`
           <sakai-rubric-criterion-student
-            criteria="${JSON.stringify(this.rubric.criteria)}"
+            .criteria="${this.rubric.criteria}"
             rubric-association="${JSON.stringify(this.association)}"
             evaluation-details="${JSON.stringify(this.evaluation.criterionOutcomes)}"
             ?preview="${this.preview}"
