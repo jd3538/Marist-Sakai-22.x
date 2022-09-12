@@ -147,7 +147,7 @@ export class SakaiGrader extends gradableDataMixin(SakaiElement) {
     }
 
     // If any grade overrides have been set, check the overrides box
-    this.showOverrides = this.submission.submitters.some(s => s.overridden);
+    this.showOverrides = this.submission.submitters?.some(s => s.overridden);
   }
 
   get submission() {
@@ -382,6 +382,12 @@ export class SakaiGrader extends gradableDataMixin(SakaiElement) {
               ${this.submission.submittedAttachments.map(r => html`
                 <div class="attachment-link"><a href="javascript;" data-url="${r.url}" @click=${this.previewAttachment}>${r.name}</a></div>
               `)}` : ""}
+          </div>
+          <div class="timeSpent-block">
+            ${this.submission.submitters[0].timeSpent ? html`
+              <span>${this.assignmentsI18n["gen.assign.spent"]}</span>
+              <span> ${this.submission.submitters[0].timeSpent}</span>
+            ` : ""}
           </div>
         </div> <!-- /grader-submitted-block -->
 
@@ -723,6 +729,9 @@ export class SakaiGrader extends gradableDataMixin(SakaiElement) {
   render() {
 
     return html`
+      ${this.areSettingsInAction() ? html`
+      <div class="sak-banner-warn">${this.i18n.filter_settings_warning}</div>
+      ` : ""}
       <div class="grader-nav">
       ${this.renderNav()}
       </div>
@@ -1309,7 +1318,7 @@ export class SakaiGrader extends gradableDataMixin(SakaiElement) {
     this.submissions = [...this.originalSubmissions];
 
     if (this.ungradedOnly) {
-      this.submissions = this.submissions.filter(s => !s.grade);
+      this.submissions = this.submissions.filter(s => !s.graded);
     }
 
     if (this.submittedOnly) {
@@ -1339,6 +1348,11 @@ export class SakaiGrader extends gradableDataMixin(SakaiElement) {
 
     this.submittedOnly = e.target.checked;
     this.applyFilters(e);
+  }
+
+  areSettingsInAction() {
+
+    return (this.currentGroup && this.currentGroup !== `/site/${portal.siteId}`) || this.submittedOnly || this.ungradedOnly;
   }
 
   removeAttachment(e) {
