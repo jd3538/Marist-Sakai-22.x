@@ -655,7 +655,7 @@ public class AssignmentEntityProvider extends AbstractEntityProvider implements 
 
         // A list of mappings of submission id to student id list
         List<SimpleSubmission> submissions
-            = assignment.getSubmissions().stream().map(as -> {
+            = assignmentService.getGradeableSubmissions(assignment).stream().map(as -> {
                 try {
                     SimpleSubmission simple = new SimpleSubmission(as, simpleAssignment, activeSubmitters);
                     simple.setProperties(addOriginalityProperties(as));

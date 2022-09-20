@@ -147,6 +147,7 @@ public class SiteArchiver {
 			root.setAttribute("server", m_serverConfigurationService.getServerId());
 			root.setAttribute("date", now.toString());
 			root.setAttribute("system", fromSystem);
+			root.setAttribute("xmlns:sakai", ArchiveService.SAKAI_ARCHIVE_NS);
 			
 			stack.push(root);
 
@@ -184,6 +185,7 @@ public class SiteArchiver {
 			root.setAttribute("server", m_serverConfigurationService.getServerId());
 			root.setAttribute("date", now.toString());
 			root.setAttribute("system", fromSystem);
+			root.setAttribute("xmlns:sakai", ArchiveService.SAKAI_ARCHIVE_NS);
 			
 			stack.push(root);
 
@@ -205,6 +207,7 @@ public class SiteArchiver {
 		root.setAttribute("site", siteId);
 		root.setAttribute("date", now.toString());
 		root.setAttribute("system", fromSystem);
+		root.setAttribute("xmlns:sakai", ArchiveService.SAKAI_ARCHIVE_NS);
 		
 		stack.push(root);
 
@@ -222,6 +225,7 @@ public class SiteArchiver {
 		root.setAttribute("site", siteId);
 		root.setAttribute("date", now.toString());
 		root.setAttribute("system", fromSystem);
+		root.setAttribute("xmlns:sakai", ArchiveService.SAKAI_ARCHIVE_NS);
 		
 		stack.push(root);
 		
