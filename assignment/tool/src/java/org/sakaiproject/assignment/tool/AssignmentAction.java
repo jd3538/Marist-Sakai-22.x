@@ -2721,9 +2721,10 @@ public class AssignmentAction extends PagedResourceActionII {
                     
             // Get visibility value of assignments tool
             String isAssignmentsVisible = toolConfig.getConfig().getProperty(ToolManager.PORTAL_VISIBLE);
-            
+            boolean isVisible = StringUtils.isBlank(isAssignmentsVisible) || StringUtils.equalsIgnoreCase(isAssignmentsVisible, Boolean.TRUE.toString());
+
             // Checks if the assignments tool is visible from the LHS Menu.
-            context.put("isAssignmentsToolVisible", StringUtils.equalsIgnoreCase(isAssignmentsVisible, Boolean.TRUE.toString()));
+            context.put("isAssignmentsToolVisible", isVisible);
             
         } catch(IdUnusedException e) {
             log.error(e.getMessage(), e);
@@ -4436,6 +4437,9 @@ public class AssignmentAction extends PagedResourceActionII {
 
         String submissionId = state.getAttribute(GRADE_SUBMISSION_SUBMISSION_ID).toString();
         List<SubmitterSubmission> subs = (List<SubmitterSubmission>) state.getAttribute(STATE_PAGEING_TOTAL_ITEMS);
+        if (!subs.isEmpty() && !(subs.get(0) instanceof SubmitterSubmission)) {
+            return 1;
+        }
         int subIndex = 0;
 
         for (int i = 0; i < subs.size(); ++i) {
@@ -7714,6 +7718,9 @@ public class AssignmentAction extends PagedResourceActionII {
                 // check the date is valid
                 if (!resubmitCloseTime.isAfter(openTime)) {
                     addAlert(state, rb.getString("acesubdea6"));
+                }
+                if (resubmitCloseTime.isBefore(dueTime)) {
+                	addAlert(state, rb.getString("acesubdea7"));
                 }
             }
         } else if (Assignment.SubmissionType.NON_ELECTRONIC_ASSIGNMENT_SUBMISSION != Assignment.SubmissionType.values()[(Integer) state.getAttribute(NEW_ASSIGNMENT_SUBMISSION_TYPE)]) {

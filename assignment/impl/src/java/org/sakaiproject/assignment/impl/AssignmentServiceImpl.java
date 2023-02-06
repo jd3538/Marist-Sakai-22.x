@@ -1463,20 +1463,20 @@ public class AssignmentServiceImpl implements AssignmentService, EntityTransferr
 
         assignment.setDateModified(Instant.now());
         assignment.setModifier(sessionManager.getCurrentSessionUserId());
-        assignmentRepository.merge(assignment);
+        Assignment updatedAssingment = assignmentRepository.merge(assignment);
 
         Task task = new Task();
-        task.setSiteId(assignment.getContext());
+        task.setSiteId(updatedAssingment.getContext());
         task.setReference(reference);
         task.setSystem(true);
-        task.setDescription(assignment.getTitle());
-        task.setGroups(assignment.getGroups());
+        task.setDescription(updatedAssingment.getTitle());
+        task.getGroups().addAll(updatedAssingment.getGroups());
 
-        if (!assignment.getHideDueDate()) {
-            task.setDue(assignment.getDueDate());
+        if (!updatedAssingment.getHideDueDate()) {
+            task.setDue(updatedAssingment.getDueDate());
         }
 
-        if (!assignment.getDraft()) {
+        if (!updatedAssingment.getDraft()) {
             taskService.createTask(task, allowAddSubmissionUsers(reference)
                     .stream().map(User::getId).collect(Collectors.toSet()),
                     Priorities.HIGH);
@@ -4942,16 +4942,16 @@ public class AssignmentServiceImpl implements AssignmentService, EntityTransferr
     }
 
     @Override
-    public Assignment getAssignmentForGradebookLink(String context, String linkId) throws IdUnusedException, PermissionException {
+    public Optional<Assignment> getAssignmentForGradebookLink(String context, String linkId) throws IdUnusedException, PermissionException {
         if (StringUtils.isNoneBlank(context, linkId)) {
-            String assignmentId = assignmentRepository.findAssignmentIdForGradebookLink(context, linkId);
-            if (assignmentId != null) {
-                return getAssignment(assignmentId);
+            Optional<String> assignmentId = assignmentRepository.findAssignmentIdForGradebookLink(context, linkId);
+            if (assignmentId.isPresent()) {
+                return Optional.of(getAssignment(assignmentId.get()));
             } else {
-                log.warn("No assignment id could be found for context {} and link {}", context, linkId);
+                log.debug("No assignment id could be found for context {} and link {}", context, linkId);
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     @Override
